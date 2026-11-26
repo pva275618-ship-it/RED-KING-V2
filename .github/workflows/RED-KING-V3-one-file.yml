@@ -1,0 +1,174 @@
+name: Build RED KING V3 APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Create Android project
+        shell: bash
+        run: |
+          mkdir -p "$(dirname settings.gradle)"
+          cat > 'settings.gradle' <<'REDKING_EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = 'RED-KING-V3'
+          include ':app'
+          REDKING_EOF
+          mkdir -p "$(dirname build.gradle)"
+          cat > 'build.gradle' <<'REDKING_EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname app/build.gradle)"
+          cat > 'app/build.gradle' <<'REDKING_EOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.redking.app'
+              compileSdk 35
+              defaultConfig {
+                  applicationId 'com.redking.app'
+                  minSdk 23
+                  targetSdk 34
+                  versionCode 3
+                  versionName '3.0'
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/AndroidManifest.xml)"
+          cat > 'app/src/main/AndroidManifest.xml' <<'REDKING_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <queries><package android:name="com.dts.freefiremax" /></queries>
+              <application android:label="RED KING V3" android:icon="@drawable/ic_king"
+                  android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/res/drawable/ic_king.xml)"
+          cat > 'app/src/main/res/drawable/ic_king.xml' <<'REDKING_EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#101118" android:pathData="M0,0H108V108H0Z" />
+              <path android:fillColor="#B71936" android:pathData="M54,12L93,28V61Q93,84 54,98Q15,84 15,61V28Z" />
+              <path android:fillColor="#FFEBDE" android:pathData="M27,39L41,53L54,30L67,53L81,39L74,72H34Z M35,76H73V82H35Z" />
+          </vector>
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/java/com/redking/app/MainActivity.java)"
+          cat > 'app/src/main/java/com/redking/app/MainActivity.java' <<'REDKING_EOF'
+          package com.redking.app;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.content.Intent;
+          import android.content.ActivityNotFoundException;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.graphics.drawable.GradientDrawable;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.*;
+
+          public class MainActivity extends Activity {
+              private static final String GAME = "com.dts.freefiremax";
+              private static final int BG = 0xff101118, PANEL = 0xff1b1d27,
+                  RED = 0xffb71936, WHITE = 0xfffaf6f6, MUTED = 0xffb9bbc8;
+              private LinearLayout body;
+              private TextView status;
+              private boolean thai = true;
+              private int dp(float n) { return Math.round(n * getResources().getDisplayMetrics().density); }
+              private String tr(String th, String en) { return thai ? th : en; }
+              @Override public void onCreate(Bundle state) {
+                  super.onCreate(state);
+                  thai = getPreferences(0).getBoolean("thai", true);
+                  getWindow().setStatusBarColor(BG);
+                  getWindow().setNavigationBarColor(BG);
+                  render();
+              }
+              private GradientDrawable shape(int color, int radius) {
+                  GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
+              }
+              private TextView text(String value, int size, int color, boolean bold) {
+                  TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color);
+                  if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD); return t;
+              }
+              private void add(LinearLayout target, View view, int top) {
+                  LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2); p.topMargin = dp(top); target.addView(view,p);
+              }
+              private LinearLayout panel() {
+                  LinearLayout p = new LinearLayout(this); p.setOrientation(LinearLayout.VERTICAL);
+                  p.setPadding(dp(18),dp(18),dp(18),dp(18)); p.setBackground(shape(PANEL,20)); return p;
+              }
+              private Button button(String label, int color, View.OnClickListener action) {
+                  Button b = new Button(this); b.setText(label); b.setAllCaps(false); b.setTextSize(16);
+                  b.setTextColor(WHITE); b.setMinHeight(dp(54)); b.setBackground(shape(color,14)); b.setOnClickListener(action); return b;
+              }
+              private void render() {
+                  ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(BG);
+                  body = new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL); body.setPadding(dp(22),dp(24),dp(22),dp(32));
+                  scroll.addView(body);
+                  TextView edition = text("R E D  /  K I N G     •     V 3",13,0xffff8395,true); add(body,edition,0);
+                  ImageView logo = new ImageView(this); logo.setImageResource(com.redking.app.R.drawable.ic_king);
+                  logo.setContentDescription("RED KING logo"); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(84),dp(84)); lp.topMargin=dp(16); body.addView(logo,lp);
+                  add(body,text("RED KING",36,WHITE,true),12);
+                  add(body,text(tr("ศูนย์เปิดเกม • รุ่น 3.0", "Game launcher • Version 3.0"),15,MUTED,false),4);
+                  LinearLayout game = panel(); add(body,game,24);
+                  add(game,text("FREE FIRE MAX",23,WHITE,true),0);
+                  status = text("",15,MUTED,false); add(game,status,10);
+                  add(game,button(tr("เปิดเกม", "Launch game"),RED,v -> openGame()),18);
+                  add(game,button(tr("ตรวจสอบเกมอีกครั้ง", "Refresh game status"),0xff343746,v -> updateStatus()),10);
+                  LinearLayout tools = panel(); add(body,tools,14);
+                  add(tools,text(tr("เครื่องมือทดสอบ", "Input test"),20,WHITE,true),0);
+                  add(tools,text(tr("ทดสอบคีย์บอร์ดในแอปนี้ ไม่ได้ส่งคำสั่งเข้าเกม", "Test keyboard input here; no inputs are sent to the game."),14,MUTED,false),8);
+                  EditText field = new EditText(this); field.setSingleLine(true); field.setTextColor(WHITE); field.setHintTextColor(MUTED); field.setHint(tr("แตะแล้วลองพิมพ์", "Tap and type")); add(tools,field,10);
+                  add(body,button(tr("ภาษา: ไทย / English", "Language: English / ไทย"),0xff343746,v -> {
+                      thai = !thai; getPreferences(0).edit().putBoolean("thai",thai).apply(); render();
+                  }),18);
+                  TextView footer = text(tr("เปิดเกมตามปกติ • ไม่แก้ไขตัวเกม", "Normal launch • No game modification"),12,MUTED,false); footer.setGravity(Gravity.CENTER); add(body,footer,20);
+                  setContentView(scroll); updateStatus();
+              }
+              private Intent gameIntent() { return getPackageManager().getLaunchIntentForPackage(GAME); }
+              private void updateStatus() {
+                  if (status != null) status.setText(gameIntent() != null ? tr("● พบเกมบนเครื่อง", "● Game detected") : tr("○ ยังไม่พบเกมบนเครื่อง", "○ Game not detected"));
+              }
+              @Override protected void onResume() { super.onResume(); updateStatus(); }
+              private void openGame() {
+                  Intent intent = gameIntent();
+                  if (intent == null) { Toast.makeText(this,tr("ไม่พบ Free Fire MAX กรุณาติดตั้งเกมก่อน", "Free Fire MAX not found. Install the game first."),Toast.LENGTH_LONG).show(); return; }
+                  try { startActivity(intent); } catch (ActivityNotFoundException | SecurityException e) {
+                      Toast.makeText(this,tr("เปิดเกมไม่สำเร็จ ลองเปิดจากหน้าหลักของมือถือ", "Unable to launch. Try your phone's home screen."),Toast.LENGTH_LONG).show();
+                  }
+              }
+          }
+          REDKING_EOF
+      - name: Build APK
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RED-KING-V3
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

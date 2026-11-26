@@ -1,0 +1,280 @@
+name: Build RED KING V4 APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Create Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf app
+          mkdir -p app
+          mkdir -p "$(dirname app/build.gradle)"
+          cat > 'app/build.gradle' <<'REDKING_EOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.redking.app'
+              compileSdk 35
+              defaultConfig {
+                  applicationId 'com.redking.app'
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 4
+                  versionName '4.0'
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/AndroidManifest.xml)"
+          cat > 'app/src/main/AndroidManifest.xml' <<'REDKING_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <queries><package android:name="com.dts.freefiremax" /></queries>
+              <application android:label="RED KING V4" android:icon="@drawable/ic_king"
+                  android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  <activity android:name=".TestActivity" android:exported="false" android:screenOrientation="landscape" />
+                  <service android:name=".MapperService" android:label="RED KING V4 mapper" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
+                      <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+                      <meta-data android:name="android.accessibilityservice" android:resource="@xml/mapper" />
+                  </service>
+              </application>
+          </manifest>
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/java/com/redking/app/MainActivity.java)"
+          cat > 'app/src/main/java/com/redking/app/MainActivity.java' <<'REDKING_EOF'
+          package com.redking.app;
+          
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.content.Intent;
+          import android.content.ActivityNotFoundException;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.graphics.drawable.GradientDrawable;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.*;
+          
+          public class MainActivity extends Activity {
+              private static final String GAME = "com.dts.freefiremax";
+              private static final int BG = 0xff101118, PANEL = 0xff1b1d27,
+                  RED = 0xffb71936, WHITE = 0xfffaf6f6, MUTED = 0xffb9bbc8;
+              private LinearLayout body;
+              private TextView status;
+              private boolean thai = true;
+              private int dp(float n) { return Math.round(n * getResources().getDisplayMetrics().density); }
+              private String tr(String th, String en) { return thai ? th : en; }
+              @Override public void onCreate(Bundle state) {
+                  super.onCreate(state);
+                  thai = getPreferences(0).getBoolean("thai", true);
+                  getWindow().setStatusBarColor(BG);
+                  getWindow().setNavigationBarColor(BG);
+                  render();
+              }
+              private GradientDrawable shape(int color, int radius) {
+                  GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
+              }
+              private TextView text(String value, int size, int color, boolean bold) {
+                  TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color);
+                  if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD); return t;
+              }
+              private void add(LinearLayout target, View view, int top) {
+                  LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2); p.topMargin = dp(top); target.addView(view,p);
+              }
+              private LinearLayout panel() {
+                  LinearLayout p = new LinearLayout(this); p.setOrientation(LinearLayout.VERTICAL);
+                  p.setPadding(dp(18),dp(18),dp(18),dp(18)); p.setBackground(shape(PANEL,20)); return p;
+              }
+              private Button button(String label, int color, View.OnClickListener action) {
+                  Button b = new Button(this); b.setText(label); b.setAllCaps(false); b.setTextSize(16);
+                  b.setTextColor(WHITE); b.setMinHeight(dp(54)); b.setBackground(shape(color,14)); b.setOnClickListener(action); return b;
+              }
+              private void render() {
+                  ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(BG);
+                  body = new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL); body.setPadding(dp(22),dp(24),dp(22),dp(32));
+                  scroll.addView(body);
+                  TextView edition = text("R E D  /  K I N G     •     V 4",13,0xffff8395,true); add(body,edition,0);
+                  ImageView logo = new ImageView(this); logo.setImageResource(com.redking.app.R.drawable.ic_king);
+                  logo.setContentDescription("RED KING logo"); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(84),dp(84)); lp.topMargin=dp(16); body.addView(logo,lp);
+                  add(body,text("RED KING",36,WHITE,true),12);
+                  add(body,text(tr("ระบบแมปปุ่ม • รุ่น 4.0", "Input mapper • Version 4.0"),15,MUTED,false),4);
+                  LinearLayout game = panel(); add(body,game,24);
+                  add(game,text("FREE FIRE MAX",23,WHITE,true),0);
+                  status = text("",15,MUTED,false); add(game,status,10);
+                  add(game,button(tr("เปิดเกม", "Launch game"),RED,v -> openGame()),18);
+                  add(game,button(tr("ตรวจสอบเกมอีกครั้ง", "Refresh game status"),0xff343746,v -> updateStatus()),10);
+                  LinearLayout mapper = panel(); add(body,mapper,14);
+                  add(mapper,text(tr("ระบบแมปปุ่มสัมผัส", "Touch mapping"),20,WHITE,true),0);
+                  add(mapper,text(tr("เปิดบริการ RED KING V4 ในการช่วยเหลือพิเศษด้วยตนเอง จากนั้นเปิดเกมหรือหน้าทดสอบ ใช้ปุ่มลอย RK เพื่อตั้งจุดและเปิดการแมป เมาส์ใช้ได้บน Android 14 ขึ้นไปเท่านั้น", "Enable RED KING V4 in Accessibility, then launch the game or test screen. Use RK overlay to set points and enable mapping. Mouse requires Android 14+."),14,MUTED,false),8);
+                  add(mapper,button(tr("เปิดการตั้งค่าการช่วยเหลือพิเศษ", "Accessibility settings"),RED,v -> startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))),12);
+                  add(mapper,button(tr("ทดสอบจุดสัมผัส", "Test touch mapping"),0xff343746,v -> startActivity(new Intent(this,TestActivity.class))),8);
+                  LinearLayout tools = panel(); add(body,tools,14);
+                  add(tools,text(tr("เครื่องมือทดสอบ", "Input test"),20,WHITE,true),0);
+                  add(tools,text(tr("ทดสอบคีย์บอร์ดในแอปนี้ ไม่ได้ส่งคำสั่งเข้าเกม", "Test keyboard input here; no inputs are sent to the game."),14,MUTED,false),8);
+                  EditText field = new EditText(this); field.setSingleLine(true); field.setTextColor(WHITE); field.setHintTextColor(MUTED); field.setHint(tr("แตะแล้วลองพิมพ์", "Tap and type")); add(tools,field,10);
+                  add(body,button(tr("ภาษา: ไทย / English", "Language: English / ไทย"),0xff343746,v -> {
+                      thai = !thai; getPreferences(0).edit().putBoolean("thai",thai).apply(); render();
+                  }),18);
+                  TextView footer = text(tr("เปิดเกมตามปกติ • ไม่แก้ไขตัวเกม", "Normal launch • No game modification"),12,MUTED,false); footer.setGravity(Gravity.CENTER); add(body,footer,20);
+                  setContentView(scroll); updateStatus();
+              }
+              private Intent gameIntent() { return getPackageManager().getLaunchIntentForPackage(GAME); }
+              private void updateStatus() {
+                  if (status != null) status.setText(gameIntent() != null ? tr("● พบเกมบนเครื่อง", "● Game detected") : tr("○ ยังไม่พบเกมบนเครื่อง", "○ Game not detected"));
+              }
+              @Override protected void onResume() { super.onResume(); updateStatus(); }
+              private void openGame() {
+                  Intent intent = gameIntent();
+                  if (intent == null) { Toast.makeText(this,tr("ไม่พบ Free Fire MAX กรุณาติดตั้งเกมก่อน", "Free Fire MAX not found. Install the game first."),Toast.LENGTH_LONG).show(); return; }
+                  try { startActivity(intent); } catch (ActivityNotFoundException | SecurityException e) {
+                      Toast.makeText(this,tr("เปิดเกมไม่สำเร็จ ลองเปิดจากหน้าหลักของมือถือ", "Unable to launch. Try your phone's home screen."),Toast.LENGTH_LONG).show();
+                  }
+              }
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/java/com/redking/app/MapperService.java)"
+          cat > 'app/src/main/java/com/redking/app/MapperService.java' <<'REDKING_EOF'
+          package com.redking.app;
+          
+          import android.accessibilityservice.AccessibilityService;
+          import android.accessibilityservice.AccessibilityServiceInfo;
+          import android.accessibilityservice.GestureDescription;
+          import android.content.SharedPreferences;
+          import android.content.res.Configuration;
+          import android.graphics.Color;
+          import android.graphics.Path;
+          import android.graphics.PixelFormat;
+          import android.graphics.Point;
+          import android.graphics.drawable.GradientDrawable;
+          import android.os.Build;
+          import android.view.*;
+          import android.view.accessibility.AccessibilityEvent;
+          import android.widget.*;
+          import java.util.*;
+          
+          public class MapperService extends AccessibilityService {
+              static MapperService instance;
+              private static final String GAME="com.dts.freefiremax";
+              private static final String[] N={"W","A","S","D","SPACE","R","LMB","RMB"};
+              private static final int[] K={KeyEvent.KEYCODE_W,KeyEvent.KEYCODE_A,KeyEvent.KEYCODE_S,KeyEvent.KEYCODE_D,KeyEvent.KEYCODE_SPACE,KeyEvent.KEYCODE_R};
+              private static final float[] X={.17f,.10f,.17f,.24f,.80f,.88f,.91f,.75f};
+              private static final float[] Y={.55f,.70f,.82f,.70f,.77f,.45f,.65f,.48f};
+              private WindowManager wm;
+              private SharedPreferences prefs;
+              private LinearLayout menu;
+              private TextView toggle;
+              private final ArrayList<View> marks=new ArrayList<>();
+              private final HashSet<Integer> consumed=new HashSet<>();
+              private boolean active, editing, armed, mouse, testing, expanded;
+              private int buttons;
+              private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
+              private Point screen(){Point p=new Point(); wm.getDefaultDisplay().getRealSize(p);return p;}
+              private String key(int i,String axis){return (screen().x>screen().y?"land":"port")+N[i]+axis;}
+              private float pos(int i,boolean x){return prefs.getFloat(key(i,x?"x":"y"),x?X[i]:Y[i]);}
+              private GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable(); d.setColor(c); d.setCornerRadius(dp(10));d.setStroke(dp(1),0xfff6798a);return d;}
+              private TextView button(String s){TextView t=new TextView(this); t.setText(s);t.setTextColor(Color.WHITE);t.setTextSize(14);t.setGravity(Gravity.CENTER);t.setPadding(dp(9),dp(10),dp(9),dp(10));t.setBackground(shape(0xffad1938));return t;}
+              private WindowManager.LayoutParams params(int w,int h,int x,int y){WindowManager.LayoutParams p=new WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);p.gravity=Gravity.TOP|Gravity.LEFT;p.x=x;p.y=y;return p;}
+              @Override protected void onServiceConnected(){super.onServiceConnected();instance=this;wm=(WindowManager)getSystemService(WINDOW_SERVICE);prefs=getSharedPreferences("mapping",MODE_PRIVATE);}
+              void test(boolean value){testing=value;setActive(value);}
+              @Override public void onAccessibilityEvent(AccessibilityEvent event){if(event.getEventType()!=AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED||event.getPackageName()==null)return;String pkg=event.getPackageName().toString();String cls=String.valueOf(event.getClassName());if(pkg.equals(GAME)){testing=false;setActive(true);}else if(pkg.equals(getPackageName())){if(cls.endsWith("MainActivity")){testing=false;setActive(false);}else if(cls.endsWith("TestActivity")){testing=true;setActive(true);}}else {testing=false;setActive(false);}}
+              private void setActive(boolean v){if(active==v)return;active=v;if(v){armed=false;editing=false;expanded=false;showMenu();}else{armed=false;editing=false;expanded=false;clearMarks();removeMenu();}syncMouse();}
+              private void removeMenu(){if(menu!=null){try{wm.removeView(menu);}catch(Exception ignored){}menu=null;}}
+              private void clearMarks(){for(View v:marks){try{wm.removeView(v);}catch(Exception ignored){}}marks.clear();}
+              private void add(String label,Runnable r){TextView t=button(label);menu.addView(t);t.setOnClickListener(v->r.run());}
+              private void showMenu(){removeMenu();if(!active)return;menu=new LinearLayout(this);menu.setOrientation(1);menu.setBackground(shape(0xe61c1921));add(expanded?"RK ▴":"RK ▾",()->{expanded=!expanded;showMenu();});if(expanded){add(editing?"บันทึกจุด":"ตั้งจุดสัมผัส",()->{editing=!editing;armed=false;if(editing)showMarks();else clearMarks();syncMouse();showMenu();});add(armed?"หยุดแมป":"เริ่มแมป",()->{if(editing){editing=false;clearMarks();}armed=!armed;syncMouse();showMenu();});if(Build.VERSION.SDK_INT>=34)add(mouse?"เมาส์: เปิด":"เมาส์: ปิด",()->{mouse=!mouse;syncMouse();showMenu();});add("ปิดระบบ",()->{armed=false;editing=false;clearMarks();syncMouse();disableSelf();});}else if(armed){TextView state=button("ON");state.setTextSize(11);menu.addView(state);state.setOnClickListener(v->{armed=false;syncMouse();showMenu();});}try{wm.addView(menu,params(-2,-2,dp(4),dp(36)));}catch(Exception e){menu=null;armed=false;syncMouse();}}
+              private void showMarks(){clearMarks();Point size=screen();int d=dp(46);for(int i=0;i<N.length;i++){final int index=i;TextView t=button(N[i]);t.setTextSize(11);WindowManager.LayoutParams p=params(d,d,Math.max(0,Math.min(size.x-d,Math.round(pos(i,true)*size.x)-d/2)),Math.max(0,Math.min(size.y-d,Math.round(pos(i,false)*size.y)-d/2)));t.setOnTouchListener(new View.OnTouchListener(){float sx,sy;int ox,oy;public boolean onTouch(View v,MotionEvent e){if(e.getActionMasked()==MotionEvent.ACTION_DOWN){sx=e.getRawX();sy=e.getRawY();ox=p.x;oy=p.y;return true;}if(e.getActionMasked()==MotionEvent.ACTION_MOVE){Point a=screen();p.x=Math.max(0,Math.min(a.x-d,ox+Math.round(e.getRawX()-sx)));p.y=Math.max(0,Math.min(a.y-d,oy+Math.round(e.getRawY()-sy)));wm.updateViewLayout(t,p);return true;}if(e.getActionMasked()==MotionEvent.ACTION_UP){int[] loc=new int[2];t.getLocationOnScreen(loc);Point a=screen();prefs.edit().putFloat(key(index,"x"),(loc[0]+d/2f)/a.x).putFloat(key(index,"y"),(loc[1]+d/2f)/a.y).apply();return true;}return true;}});try{wm.addView(t,p);marks.add(t);}catch(Exception ignored){}}}
+              private boolean canMap(){return active&&armed&&!editing;}
+              private void tap(int i){if(!canMap())return;Point p=screen();Path path=new Path();path.moveTo(Math.max(1,Math.min(p.x-2,pos(i,true)*p.x)),Math.max(1,Math.min(p.y-2,pos(i,false)*p.y)));GestureDescription g=new GestureDescription.Builder().addStroke(new GestureDescription.StrokeDescription(path,0,55)).build();dispatchGesture(g,null,null);}
+              @Override protected boolean onKeyEvent(KeyEvent e){int k=e.getKeyCode();if(e.getAction()==KeyEvent.ACTION_UP)return consumed.remove(k);if(e.getAction()!=KeyEvent.ACTION_DOWN||!canMap())return false;for(int i=0;i<K.length;i++)if(K[i]==k){if(e.getRepeatCount()==0){consumed.add(k);tap(i);}return true;}return false;}
+              private void syncMouse(){buttons=0;if(Build.VERSION.SDK_INT>=34){AccessibilityServiceInfo info=getServiceInfo();if(info!=null){info.setMotionEventSources(canMap()&&mouse?InputDevice.SOURCE_MOUSE:0);setServiceInfo(info);}}}
+              @Override public void onMotionEvent(MotionEvent e){if(!canMap()||!mouse||!e.isFromSource(InputDevice.SOURCE_MOUSE))return;int current=e.getButtonState();if(e.getActionMasked()==MotionEvent.ACTION_UP||e.getActionMasked()==MotionEvent.ACTION_CANCEL)current=0;int pressed=current&~buttons;buttons=current;if((pressed&MotionEvent.BUTTON_PRIMARY)!=0)tap(6);else if((pressed&MotionEvent.BUTTON_SECONDARY)!=0)tap(7);}
+              @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);if(active){armed=false;editing=false;clearMarks();syncMouse();showMenu();}}
+              @Override public void onInterrupt(){setActive(false);}
+              @Override public void onDestroy(){setActive(false);instance=null;super.onDestroy();}
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/java/com/redking/app/TestActivity.java)"
+          cat > 'app/src/main/java/com/redking/app/TestActivity.java' <<'REDKING_EOF'
+          package com.redking.app;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.widget.*;
+          import android.view.*;
+          public class TestActivity extends Activity {
+              private int count;
+              @Override public void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  LinearLayout root = new LinearLayout(this); root.setOrientation(1); root.setBackgroundColor(0xff101118);
+                  TextView label = new TextView(this); label.setTextColor(Color.WHITE); label.setTextSize(18); label.setText("ทดสอบ: แตะปุ่ม RK เพื่อตั้งจุด แล้วเปิดแมป • นับการแตะ 0"); root.addView(label);
+                  for(int i=0;i<2;i++){ LinearLayout row=new LinearLayout(this); root.addView(row,new LinearLayout.LayoutParams(-1,0,1));
+                      for(int j=0;j<4;j++){ Button b1=new Button(this); b1.setText("จุด "+(i*4+j+1)); row.addView(b1,new LinearLayout.LayoutParams(0,-1,1)); b1.setOnClickListener(v -> label.setText("นับการแตะ "+(++count))); }}
+                  Button back=new Button(this); back.setText("กลับ"); root.addView(back); back.setOnClickListener(v -> finish()); setContentView(root);
+              }
+              @Override protected void onResume(){super.onResume(); if(MapperService.instance!=null) MapperService.instance.test(true);}
+              @Override protected void onPause(){if(MapperService.instance!=null) MapperService.instance.test(false); super.onPause();}
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/res/drawable/ic_king.xml)"
+          cat > 'app/src/main/res/drawable/ic_king.xml' <<'REDKING_EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#101118" android:pathData="M0,0H108V108H0Z" />
+              <path android:fillColor="#B71936" android:pathData="M54,12L93,28V61Q93,84 54,98Q15,84 15,61V28Z" />
+              <path android:fillColor="#FFEBDE" android:pathData="M27,39L41,53L54,30L67,53L81,39L74,72H34Z M35,76H73V82H35Z" />
+          </vector>
+          REDKING_EOF
+          mkdir -p "$(dirname app/src/main/res/xml/mapper.xml)"
+          cat > 'app/src/main/res/xml/mapper.xml' <<'REDKING_EOF'
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeWindowStateChanged"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:accessibilityFlags="flagRequestFilterKeyEvents"
+              android:canRequestFilterKeyEvents="true"
+              android:canPerformGestures="true"
+              android:notificationTimeout="0" />
+          REDKING_EOF
+          mkdir -p "$(dirname build.gradle)"
+          cat > 'build.gradle' <<'REDKING_EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          REDKING_EOF
+          mkdir -p "$(dirname settings.gradle)"
+          cat > 'settings.gradle' <<'REDKING_EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = 'RED-KING-V3'
+          include ':app'
+          REDKING_EOF
+      - name: Build APK
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RED-KING-V4
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
